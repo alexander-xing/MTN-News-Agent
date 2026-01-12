@@ -1,12 +1,12 @@
 name: MTN AI News Agent
 
 on:
-  workflow_dispatch:  # 支持手动触发
+  workflow_dispatch:
   schedule:
-    - cron: '0 8 * * *' # 每天早上8点运行
+    - cron: '0 8 * * *'
 
 jobs:
-  execute-agent:
+  run-agent:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -18,10 +18,9 @@ jobs:
           python-version: '3.10'
 
       - name: Install Dependencies
-        run: |
-          pip install google-genai feedparser deep-translator
+        run: pip install -r requirements.txt
 
-      - name: Execute Agent
+      - name: Run Script
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
