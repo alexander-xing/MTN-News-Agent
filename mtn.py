@@ -16,7 +16,7 @@ client = None
 
 if api_key:
     try:
-        # 【核心修正】强制锁定 v1 版本，彻底解决 v1beta 导致的 404 错误
+        # 强制锁定 v1 模式，这是 2026 年最稳定的生产环境端点，彻底解决 v1beta 导致的 404 错误
         client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
         print("✅ Gemini SDK 已初始化 (强制 v1 模式)")
     except Exception as e:
@@ -27,21 +27,29 @@ def get_ai_summarizer(title):
     
     prompt = f"针对电信新闻标题 '{title}'，给出3句中文总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     
-    # 在 v1 模式下，直接使用这两个官方 ID，不加 models/ 前缀
     models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro"]
     
     for model_id in models_to_try:
         try:
+            # 增加安全设置，防止 MTN 的敏感地区新闻被 Google 静默过滤
             response = client.models.generate_content(
                 model=model_id, 
-                contents=prompt
+                contents=prompt,
+                config={
+                    'safety_settings': [
+                        {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+                        {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
+                        {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_NONE'},
+                        {'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold': 'BLOCK_NONE'}
+                    ]
+                }
             )
             if response and response.text:
                 return response.text.strip().replace('\n', '<br>')
         except Exception as e:
-            # 如果是 API Key 过期错误，直接抛出，不再尝试其他模型
-            if "API key expired" in str(e):
-                print(f"🛑 严重错误: API Key 已失效，请去 AI Studio 重新生成！")
+            # 如果捕捉到 API Key 失效，直接提示，方便在日志中排查
+            if "API key expired" in str(e) or "API_KEY_INVALID" in str(e):
+                print(f"🛑 严重错误: Gemini API Key 已失效，请检查 GitHub Secrets！")
                 return None
             continue
     return None
@@ -67,7 +75,7 @@ def fetch_from_google(query):
 
 def send_news_email():
     sender_user = os.environ.get('EMAIL_ADDRESS')
-    sender_password = os.environ.get('EMAIL_PASSWORD')
+    sender_password = os.environ.get('EMAIL_PASSWORD') # 必须是16位无空格应用密码
     receiver_user = os.environ.get('RECEIVER_EMAIL')
 
     subsidaries = ['MTN Group', '"MTN South Africa"', '"MTN Nigeria"', '"MTN Ghana"', '"MTN Uganda"', '"MTN Cameroon"', '"MTN Ivory Coast"']
@@ -86,7 +94,7 @@ def send_news_email():
         eng_title = item['title']
         ai_summary = get_ai_summarizer(eng_title)
         
-        # 频率控制，防止被 Google 封锁
+        # 频率控制，防止 429 报错
         time.sleep(1.5)
         
         try:
@@ -112,11 +120,22 @@ def send_news_email():
         </tr>
         """
 
-    html_content = f"<html><body style='font-family: Arial; padding: 20px;'><div style='max-width: 800px; margin: 0 auto; border: 1px solid #ddd;'> <div style='background: #ffcc00; padding: 20px; text-align: center;'><h2>MTN Intelligence Report</h2></div> <table style='width: 100%; border-collapse: collapse;'>{table_rows}</table></div></body></html>"
+    html_content = f"""
+    <html>
+    <body style="font-family: Arial; padding: 20px; background-color: #f4f4f4;">
+        <div style="max-width: 850px; margin: 0 auto; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #ffcc00; padding: 20px; text-align: center;">
+                <h2 style="margin: 0;">MTN AI Intelligence Report</h2>
+            </div>
+            <table style="width: 100%; border-collapse: collapse;">{table_rows}</table>
+        </div>
+    </body>
+    </html>
+    """
 
     msg = MIMEMultipart()
     msg['Subject'] = f"MTN Intelligence Report - {datetime.now().strftime('%Y-%m-%d')}"
-    msg['From'] = f"ALEX AI <{sender_user}>"
+    msg['From'] = f"ALEX AI Agent <{sender_user}>"
     msg['To'] = receiver_user
     msg.attach(MIMEText(html_content, 'html'))
 
@@ -124,9 +143,9 @@ def send_news_email():
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
             server.send_message(msg)
-        print("✅ 报告已送达。")
+        print("✅ 报告已成功送达。")
     except Exception as e:
-        print(f"❌ 发送失败: {e}")
+        print(f"❌ 邮件发送失败: {e}")
 
 if __name__ == "__main__":
     send_news_email()
