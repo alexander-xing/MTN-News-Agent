@@ -12,30 +12,46 @@ from deep_translator import GoogleTranslator
 # --- 配置 Gemini SDK ---
 api_key = os.environ.get('GEMINI_API_KEY')
 client = None
+active_model = None
+
 if api_key:
     try:
-        # 初始化时，SDK 会自动处理版本
         client = genai.Client(api_key=api_key)
+        # --- 核心修复：自动探测可用模型 ---
+        print("正在探测可用 AI 模型...")
+        for m in client.models.list():
+            # 优先寻找 flash 版本的模型，它速度最快且免费额度高
+            if 'generateContent' in m.supported_methods and 'flash' in m.name:
+                active_model = m.name
+                print(f"成功锁定模型: {active_model}")
+                break
+        
+        # 如果没找到 flash，就找任何支持生成内容的模型
+        if not active_model:
+            for m in client.models.list():
+                if 'generateContent' in m.supported_methods:
+                    active_model = m.name
+                    break
     except Exception as e:
-        print(f"Gemini 初始化失败: {e}")
+        print(f"Gemini 初始化探测失败: {e}")
 
 def get_ai_summarizer(title):
-    """修正 404 路径问题的总结函数"""
-    if not client:
+    """使用探测到的 active_model 进行总结"""
+    if not client or not active_model:
         return None
         
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     try:
-        # 修正关键：添加 'models/' 前缀，确保指向正确的资源路径
+        # 使用探测到的确切名称（例如可能是 'models/gemini-2.0-flash'）
         response = client.models.generate_content(
-            model="models/gemini-1.5-flash", 
+            model=active_model, 
             contents=prompt
         )
         if response and response.text:
             return response.text.strip().replace('\n', '<br>')
         return None
     except Exception as e:
-        print(f"AI 总结不可用 (API 错误): {e}")
+        print(f"AI 总结不可用 (执行错误): {e}")
         return None
 
 def fetch_from_google(query):
