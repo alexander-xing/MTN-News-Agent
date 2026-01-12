@@ -50,7 +50,7 @@ def send_email(items):
     for item in items:
         fire = "🔥" * max(1, min(item['score'], 5))
         html += f"<tr><td style='text-align:center'>{fire}</td><td><b>{item['title']}</b><br><a href='{item['link']}'>点击阅读</a></td></tr>"
-    html += "</table><p>推送时间：周一 09:15 AM (GMT+2)</p>"
+    html += "</table><p>推送时间：周一 09:30 AM (GMT+2)</p>"
 
     msg = MIMEText(html, 'html', 'utf-8')
     msg['From'] = EMAIL_SENDER
