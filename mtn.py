@@ -27,23 +27,26 @@ def get_ai_summarizer(title):
         
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     
-    # 依次尝试这两个最可能的模型 ID
-    models_to_try = ["gemini-1.5-flash", "gemini-pro"]
+    # 2026 SDK 2.0 建议：在 v1 模式下使用这个最稳健的模型列表
+    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro"]
     
     for model_id in models_to_try:
         try:
-            # SDK 2.0 在 v1 模式下，直接传字符串 ID
+            # 这里的调用增加了更明确的返回字段处理
             response = client.models.generate_content(
                 model=model_id, 
                 contents=prompt
             )
-            if response and response.text:
-                return response.text.strip().replace('\n', '<br>')
+            # 重点：新版 SDK 有时内容在 candidate 里，我们直接尝试获取最终文本
+            if response:
+                summary = response.text.strip()
+                if summary:
+                    return summary.replace('\n', '<br>')
         except Exception as e:
-            # 如果是 404，说明当前模型 ID 不对，继续尝试下一个
-            if "404" in str(e):
-                continue
-            print(f"⚠️ 模型 {model_id} 调用异常: {e}")
+            # 打印非 404 的其他错误（如：安全审核、配额限制）
+            if "404" not in str(e):
+                print(f"⚠️ {model_id} 运行时异常: {e}")
+            continue
     
     return None
 
