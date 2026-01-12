@@ -27,25 +27,36 @@ def get_ai_summarizer(title):
         
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     
-    # 2026 SDK 2.0 建议：在 v1 模式下使用这个最稳健的模型列表
+    # 尝试最稳定的两个 ID
     models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro"]
     
     for model_id in models_to_try:
         try:
-            # 这里的调用增加了更明确的返回字段处理
             response = client.models.generate_content(
                 model=model_id, 
                 contents=prompt
             )
-            # 重点：新版 SDK 有时内容在 candidate 里，我们直接尝试获取最终文本
-            if response:
-                summary = response.text.strip()
-                if summary:
-                    return summary.replace('\n', '<br>')
+            
+            # 2026 SDK 终极读取逻辑：
+            # 1. 优先尝试标准的 .text 属性
+            if hasattr(response, 'text') and response.text:
+                return response.text.strip().replace('\n', '<br>')
+            
+            # 2. 如果 .text 为空，尝试从 candidates 深度抓取（应对安全过滤后的残留）
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    part_text = candidate.content.parts[0].text
+                    if part_text:
+                        return part_text.strip().replace('\n', '<br>')
+
+            # 如果走到这里，说明 API 返回了空对象（可能是安全拦截）
+            print(f"ℹ️ {model_id} 返回了空内容，可能是触发了安全过滤。")
+            
         except Exception as e:
-            # 打印非 404 的其他错误（如：安全审核、配额限制）
+            # 忽略 404，只记录严重的运行时异常
             if "404" not in str(e):
-                print(f"⚠️ {model_id} 运行时异常: {e}")
+                print(f"⚠️ {model_id} 运行时异常细节: {str(e)}")
             continue
     
     return None
