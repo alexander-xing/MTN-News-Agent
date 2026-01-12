@@ -2,34 +2,33 @@ import os
 import smtplib
 import feedparser
 import urllib.parse
-from google import genai # 使用全新的 SDK
+from google import genai
 from datetime import datetime, timedelta
 from time import mktime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from deep_translator import GoogleTranslator
 
-# --- 配置全新的 Gemini SDK ---
+# --- 配置 Gemini SDK ---
 api_key = os.environ.get('GEMINI_API_KEY')
 client = None
 if api_key:
     try:
-        # 2026 最新初始化方式
+        # 初始化时，SDK 会自动处理版本
         client = genai.Client(api_key=api_key)
-        model_id = "gemini-1.5-flash" 
     except Exception as e:
         print(f"Gemini 初始化失败: {e}")
 
 def get_ai_summarizer(title):
-    """使用最新的 google-genai 进行三句话总结"""
+    """修正 404 路径问题的总结函数"""
     if not client:
         return None
         
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     try:
-        # 新 SDK 的生成方式
+        # 修正关键：添加 'models/' 前缀，确保指向正确的资源路径
         response = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="models/gemini-1.5-flash", 
             contents=prompt
         )
         if response and response.text:
@@ -88,7 +87,7 @@ def send_news_email():
         if ai_summary:
             display_content = f"<div style='color: #d4a017; font-weight: bold; margin-bottom: 5px;'>AI 深度分析：</div>{ai_summary}"
         else:
-            display_content = f"<div style='color: #666; font-style: italic;'>AI 分析暂不可用，中文译文如下：</div><strong>{chi_title}</strong>"
+            display_content = f"<div style='color: #666; font-style: italic;'>AI 分析暂不可用，中文标题如下：</div><strong>{chi_title}</strong>"
             
         table_rows += f"""
         <tr>
@@ -140,5 +139,5 @@ def send_news_email():
         print(f"❌ 发送失败: {e}")
 
 if __name__ == "__main__":
-    send_news_email()
+    # 删除了多余的一次调用，避免重复发信
     send_news_email()
