@@ -1,6 +1,7 @@
 import os
 import smtplib
 import feedparser
+import urllib.parse  # 导入用于处理 URL 编码的库
 from datetime import datetime, timedelta
 from time import mktime
 from email.mime.text import MIMEText
@@ -9,9 +10,14 @@ from deep_translator import GoogleTranslator
 
 def get_mtn_intelligence():
     # 1. 构造精准搜索关键词
-    # 搜索 MTN 集团或主要子网 (南非、尼日利亚、加纳等) 过去 14 天的热门内容
     query = '(MTN Group OR "MTN South Africa" OR "MTN Nigeria" OR "MTN Ghana") when:14d'
-    rss_url = f"https://news.google.com/rss/search?q={query}&hl=en-US&gl=US&ceid=US:en"
+    
+    # --- 关键修复：对搜索关键词进行 URL 编码 ---
+    encoded_query = urllib.parse.quote(query)
+    rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
+    
+    # 打印一下链接，方便在日志里调试（可选）
+    print(f"Fetching RSS from: {rss_url}")
     
     feed = feedparser.parse(rss_url)
     news_items = []
@@ -20,22 +26,20 @@ def get_mtn_intelligence():
     two_weeks_ago = datetime.now() - timedelta(days=14)
 
     for entry in feed.entries:
-        # 获取发布时间
+        if not hasattr(entry, 'published_parsed'):
+            continue
+            
         published_time = datetime.fromtimestamp(mktime(entry.published_parsed))
         
         if published_time > two_weeks_ago:
-            # 提取来源（Google News 通常在标题末尾带上 - Source）
-            full_title = entry.title
             source = entry.source.get('title', 'Unknown')
-            
             news_items.append({
-                "title": full_title,
+                "title": entry.title,
                 "url": entry.link,
                 "source": source,
                 "date": published_time.strftime('%Y-%m-%d')
             })
         
-        # 限制数量：只取最相关的 Top 15 条，避免邮件过长
         if len(news_items) >= 15:
             break
             
@@ -62,7 +66,6 @@ def send_news_email():
         date = item['date']
         
         try:
-            # 翻译标题
             chi_title = translator.translate(eng_title)
         except:
             chi_title = "翻译服务暂时不可用"
