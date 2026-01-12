@@ -16,9 +16,9 @@ client = None
 
 if api_key:
     try:
-        # 【重要】不强制 api_version，让 SDK 自动处理兼容性
-        client = genai.Client(api_key=api_key)
-        print("✅ Gemini SDK 已初始化 (自动兼容模式)")
+        # 【核心修正】强制锁定 v1 版本，彻底解决 v1beta 导致的 404 错误
+        client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
+        print("✅ Gemini SDK 已初始化 (强制 v1 模式)")
     except Exception as e:
         print(f"❌ SDK 初始化失败: {e}")
 
@@ -27,38 +27,25 @@ def get_ai_summarizer(title):
     
     prompt = f"针对电信新闻标题 '{title}'，给出3句中文总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     
-    # 【核心改动】依次尝试 3 种可能的模型路径，彻底解决 404
-    # 只要有一个能通，邮件就会有内容
-    models_to_try = [
-        "gemini-1.5-flash",      # 现代 ID
-        "gemini-1.0-pro",        # 极稳 ID
-        "models/gemini-pro"      # 备用 ID
-    ]
+    # 在 v1 模式下，直接使用这两个官方 ID，不加 models/ 前缀
+    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro"]
     
     for model_id in models_to_try:
         try:
             response = client.models.generate_content(
                 model=model_id, 
-                contents=prompt,
-                config={
-                    'safety_settings': [
-                        {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
-                        {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
-                        {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_NONE'},
-                        {'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold': 'BLOCK_NONE'}
-                    ]
-                }
+                contents=prompt
             )
             if response and response.text:
                 return response.text.strip().replace('\n', '<br>')
         except Exception as e:
-            # 只有在最后一个模型也失败时，才打印错误
-            if model_id == models_to_try[-1]:
-                print(f"⚠️ 所有模型均失败。最后报错: {e}")
+            # 如果是 API Key 过期错误，直接抛出，不再尝试其他模型
+            if "API key expired" in str(e):
+                print(f"🛑 严重错误: API Key 已失效，请去 AI Studio 重新生成！")
+                return None
             continue
     return None
 
-# --- fetch_from_google 逻辑保持不变 ---
 def fetch_from_google(query):
     encoded_query = urllib.parse.quote(query)
     rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
@@ -99,8 +86,8 @@ def send_news_email():
         eng_title = item['title']
         ai_summary = get_ai_summarizer(eng_title)
         
-        # 强制休眠 1 秒，防止触发频率限制 (RPM)
-        time.sleep(1)
+        # 频率控制，防止被 Google 封锁
+        time.sleep(1.5)
         
         try:
             chi_title = translator.translate(eng_title)
@@ -110,7 +97,7 @@ def send_news_email():
         if ai_summary:
             display_content = f"<div style='color: #d4a017; font-weight: bold; margin-bottom: 5px;'>AI 深度分析：</div>{ai_summary}"
         else:
-            display_content = f"<div style='color: #666; font-style: italic;'>AI 分析暂不可用，中文标题如下：</div><strong>{chi_title}</strong>"
+            display_content = f"<div style='color: #666; font-style: italic;'>AI 分析暂不可用，内容如下：</div><strong>{chi_title}</strong>"
             
         table_rows += f"""
         <tr>
@@ -125,31 +112,11 @@ def send_news_email():
         </tr>
         """
 
-    html_content = f"""
-    <html>
-    <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
-        <div style="max-width: 900px; margin: 0 auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-            <div style="background-color: #ffcc00; padding: 30px; text-align: center;">
-                <h1 style="margin: 0; font-size: 26px;">MTN AI Intelligence Report</h1>
-                <p style="margin: 5px 0 0;">ALEX AI Agent 2.0 (Stable)</p>
-            </div>
-            <div style="padding: 25px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr style="background-color: #222; color: #fff;">
-                        <th style="padding: 12px; text-align: left;">Original News</th>
-                        <th style="padding: 12px; text-align: left;">AI Summary & Insights</th>
-                    </tr>
-                    {table_rows}
-                </table>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
+    html_content = f"<html><body style='font-family: Arial; padding: 20px;'><div style='max-width: 800px; margin: 0 auto; border: 1px solid #ddd;'> <div style='background: #ffcc00; padding: 20px; text-align: center;'><h2>MTN Intelligence Report</h2></div> <table style='width: 100%; border-collapse: collapse;'>{table_rows}</table></div></body></html>"
 
     msg = MIMEMultipart()
     msg['Subject'] = f"MTN Intelligence Report - {datetime.now().strftime('%Y-%m-%d')}"
-    msg['From'] = f"ALEX AI Reports <{sender_user}>"
+    msg['From'] = f"ALEX AI <{sender_user}>"
     msg['To'] = receiver_user
     msg.attach(MIMEText(html_content, 'html'))
 
