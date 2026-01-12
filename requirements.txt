@@ -1,4 +1,3 @@
-feedparser
-pytz
-deep-translator
 google-genai
+feedparser
+deep-translator
