@@ -20,13 +20,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install feedparser requests pytz deep-translator
+          pip install feedparser requests pytz deep-translator google-generativeai
 
       - name: Execute Agent
         env:
-          # 修改这里，让 key 对应 mtn.py 里的 os.environ.get
+          # 读取你在 GitHub Secrets 中保存的变量
           EMAIL_ADDRESS: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
-        # 修改这里，确保运行的是 mtn.py
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python mtn.py
