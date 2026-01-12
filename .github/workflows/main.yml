@@ -1,31 +1,30 @@
-name: Weekly MTN Intelligence
+name: MTN AI News Agent
 
 on:
+  workflow_dispatch:  # 支持手动触发
   schedule:
-    # 周一 09:30 SAST (南非时间) = 07:30 UTC
-    - cron: '30 7 * * 1'
-  workflow_dispatch: 
+    - cron: '0 8 * * *' # 每天早上8点运行
 
 jobs:
-  run-agent:
+  execute-agent:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Python
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10' # 升级到 3.10，解决 Google SDK 不兼容问题
+          python-version: '3.10'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: |
-          pip install feedparser requests pytz deep-translator google-genai # 使用最新的 google-genai
+          pip install google-genai feedparser deep-translator
 
       - name: Execute Agent
         env:
-          EMAIL_ADDRESS: ${{ secrets.EMAIL_SENDER }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python mtn.py
