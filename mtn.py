@@ -26,10 +26,10 @@ def fetch_from_google(query):
             items.append({
                 "title": entry.title,
                 "url": entry.link,
-                "source": entry.source.get('title', 'Global Media'),
+                "source": entry.source.get('title', 'International Media'),
                 "date": published_time.strftime('%Y-%m-%d')
             })
-        if len(items) >= 20: 
+        if len(items) >= 15: 
             break
     return items
 
@@ -41,12 +41,10 @@ def get_mtn_intelligence():
     ]
     query_str = "(" + " OR ".join(subsidaries) + ") when:14d"
     
-    print(f"正在尝试高精准搜索: {query_str}")
     news_items = fetch_from_google(query_str)
     
     if not news_items:
-        print("⚠️ 高精准搜索未匹配到结果，正在启动保底搜索策略...")
-        fallback_query = "MTN Telecom when:14d"
+        fallback_query = "MTN Global Telecom when:14d"
         news_items = fetch_from_google(fallback_query)
         
     return news_items
@@ -59,12 +57,8 @@ def send_news_email():
     news_data = get_mtn_intelligence()
     
     if not news_data:
-        news_data = [{
-            "title": "System Alert: No major news found in the last 14 days for MTN subsidiaries.",
-            "url": "https://news.google.com",
-            "source": "System",
-            "date": datetime.now().strftime('%Y-%m-%d')
-        }]
+        # 如果依然没新闻，发送一份简单的系统状态报告，避免邮件内容过空
+        news_data = [{"title": "No major updates found in the specified period.", "url": "#", "source": "System", "date": "-"}]
 
     translator = GoogleTranslator(source='en', target='zh-CN')
     table_rows = ""
@@ -72,43 +66,58 @@ def send_news_email():
     for item in news_data:
         eng_title = item['title']
         try:
+            # 翻译逻辑
             chi_title = translator.translate(eng_title)
         except:
-            chi_title = "翻译接口繁忙，请阅读原文"
+            chi_title = "Translation temporary unavailable."
             
         table_rows += f"""
         <tr>
-            <td style="padding: 12px; border: 1px solid #ddd; font-size: 14px;">
-                <strong>{eng_title}</strong><br>
-                <span style="color: #666; font-size: 11px;">{item['source']} | {item['date']}</span>
+            <td style="padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; width: 50%;">
+                <div style="font-weight: bold; color: #333;">{eng_title}</div>
+                <div style="font-size: 12px; color: #999; margin-top: 4px;">{item['source']} | {item['date']}</div>
             </td>
-            <td style="padding: 12px; border: 1px solid #ddd; font-size: 14px; color: #333;">{chi_title}</td>
-            <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
-                <a href="{item['url']}" style="display: inline-block; padding: 6px 12px; background-color: #ffcc00; color: #000; text-decoration: none; border-radius: 20px; font-weight: bold; font-size: 12px;">阅读原文</a>
+            <td style="padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; color: #666;">
+                {chi_title}
+            </td>
+            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">
+                <a href="{item['url']}" style="color: #0056b3; text-decoration: none; font-size: 13px;">View Details →</a>
             </td>
         </tr>
         """
 
+    # 邮件 HTML 结构优化：减少花哨颜色，增加正文描述
     html_content = f"""
     <html>
-    <body style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f4f4;">
-        <div style="max-width: 900px; margin: 0 auto; background-color: #fff; border-radius: 8px; overflow: hidden; border: 1px solid #ddd; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
-            <div style="background-color: #ffcc00; padding: 25px; text-align: center;">
-                <h1 style="margin: 0; font-size: 24px; color: #000;">MTN Intelligence Report</h1>
-                <p style="margin: 5px 0 0; color: #333;">ALEX AI Agent - 全球动态监控</p>
+    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 20px;">
+        <div style="max-width: 800px; margin: 0 auto; background: #ffffff;">
+            <div style="padding-bottom: 20px; border-bottom: 2px solid #333;">
+                <h2 style="margin: 0; color: #000;">MTN Market Update</h2>
+                <p style="color: #666; font-size: 14px; margin: 5px 0 0;">Prepared by ALEX AI Intelligence Service</p>
             </div>
-            <div style="padding: 20px;">
-                <table style="width: 100%; border-collapse: collapse;">
-                    <tr style="background-color: #000; color: #fff;">
-                        <th style="padding: 12px; text-align: left;">新闻原文 (English)</th>
-                        <th style="padding: 12px; text-align: left;">中文导读 (Chinese)</th>
-                        <th style="padding: 12px; text-align: center;">链接</th>
+            
+            <p style="font-size: 14px; color: #444; margin-top: 20px;">
+                Hello, <br><br>
+                Please find the latest business updates and news summaries for MTN Group and its regional subsidiaries (Last 14 days).
+            </p>
+
+            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                <thead>
+                    <tr style="text-align: left; background-color: #f9f9f9;">
+                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">Headline</th>
+                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">Summary (CN)</th>
+                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">Action</th>
                     </tr>
+                </thead>
+                <tbody>
                     {table_rows}
-                </table>
-            </div>
-            <div style="background-color: #f9f9f9; padding: 15px; text-align: center; color: #888; font-size: 12px;">
-                Generated by ALEX AI Agent | Current Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+                </tbody>
+            </table>
+
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
+                This is an automated professional briefing. <br>
+                Markets covered: South Africa, Nigeria, Ghana, Uganda, Cameroon, Ivory Coast. <br>
+                Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             </div>
         </div>
     </body>
@@ -116,8 +125,12 @@ def send_news_email():
     """
 
     msg = MIMEMultipart()
-    msg['Subject'] = f"【MTN 集团情报】{datetime.now().strftime('%m月%d日')} 推送"
-    msg['From'] = f"ALEX AI Agent - MTN Intelligence <{sender_user}>"
+    
+    # --- 策略：使用全英文专业标题，极大地降低被拦截概率 ---
+    msg['Subject'] = f"MTN Business Update: Global Subsidiary News - {datetime.now().strftime('%Y-%m-%d')}"
+    
+    # --- 策略：规范发件人名称 ---
+    msg['From'] = f"ALEX AI Reports <{sender_user}>"
     msg['To'] = receiver_user
     msg.attach(MIMEText(html_content, 'html'))
 
@@ -125,9 +138,9 @@ def send_news_email():
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
             server.send_message(msg)
-        print("✅ 任务完成：邮件已发出。")
+        print("✅ Report sent successfully.")
     except Exception as e:
-        print(f"❌ 邮件发送失败: {e}")
+        print(f"❌ Error occurred: {e}")
 
 if __name__ == "__main__":
     send_news_email()
