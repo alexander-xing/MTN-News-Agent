@@ -1,5 +1,4 @@
 feedparser
-requests
 pytz
 deep-translator
-google-generativeai
+google-genai
