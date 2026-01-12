@@ -15,9 +15,9 @@ client = None
 
 if api_key:
     try:
-        # 移除显式的 http_options，让 SDK 使用默认最兼容的配置
-        client = genai.Client(api_key=api_key)
-        print("✅ Gemini SDK 已初始化 (使用默认兼容模式)")
+        # 2026 终极兼容性方案：显式指定 v1，这是目前最稳定的生产环境端点
+        client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
+        print("✅ Gemini SDK 已初始化 (强制 v1 模式)")
     except Exception as e:
         print(f"❌ Gemini 初始化失败: {e}")
 
@@ -26,20 +26,26 @@ def get_ai_summarizer(title):
         return None
         
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
-    try:
-        # 【核心修正】：不带 models/ 前缀，直接使用模型 ID
-        # 这是 SDK 2.0 在自动匹配 v1/v1beta 时最稳健的写法
-        response = client.models.generate_content(
-            model="gemini-1.5-flash", 
-            contents=prompt
-        )
-        if response and response.text:
-            return response.text.strip().replace('\n', '<br>')
-        return None
-    except Exception as e:
-        # 这里会打印出导致 404 的真正路径
-        print(f"⚠️ AI 调用失败: {e}")
-        return None
+    
+    # 依次尝试这两个最可能的模型 ID
+    models_to_try = ["gemini-1.5-flash", "gemini-pro"]
+    
+    for model_id in models_to_try:
+        try:
+            # SDK 2.0 在 v1 模式下，直接传字符串 ID
+            response = client.models.generate_content(
+                model=model_id, 
+                contents=prompt
+            )
+            if response and response.text:
+                return response.text.strip().replace('\n', '<br>')
+        except Exception as e:
+            # 如果是 404，说明当前模型 ID 不对，继续尝试下一个
+            if "404" in str(e):
+                continue
+            print(f"⚠️ 模型 {model_id} 调用异常: {e}")
+    
+    return None
 
 # --- fetch_from_google 和 send_news_email 逻辑保持不变 ---
 def fetch_from_google(query):
