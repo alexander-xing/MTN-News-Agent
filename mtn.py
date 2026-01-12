@@ -2,11 +2,35 @@ import os
 import smtplib
 import feedparser
 import urllib.parse
+import google.generativeai as genai
 from datetime import datetime, timedelta
 from time import mktime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from deep_translator import GoogleTranslator
+
+# 1. 配置 Gemini AI
+genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
+ai_model = genai.GenerativeModel('gemini-1.5-flash')
+
+def get_ai_summarizer(title):
+    """
+    方案 D 核心：调用 AI 进行三句话精华总结
+    """
+    prompt = f"""
+    你是一个资深的电信行业分析师。请针对下面这则关于 MTN 集团的新闻标题，直接给出中文分析：
+    标题: "{title}"
+    要求：
+    1. 请给出 3 句精华总结。
+    2. 第一句概括事件，第二句分析对商业的影响，第三句给出你的行业点评。
+    3. 每句话尽量简练，总字数控制在 80 字以内。
+    """
+    try:
+        response = ai_model.generate_content(prompt)
+        # 将生成的文本按行或分号处理，确保展示美观
+        return response.text.replace('\n', '<br>')
+    except Exception as e:
+        print(f"AI Summarizer Error: {e}")
+        return "AI 总结暂时无法生成，请查看原文详情。"
 
 def fetch_from_google(query):
     """通用的 RSS 抓取逻辑"""
@@ -29,7 +53,7 @@ def fetch_from_google(query):
                 "source": entry.source.get('title', 'International Media'),
                 "date": published_time.strftime('%Y-%m-%d')
             })
-        if len(items) >= 15: 
+        if len(items) >= 12: # 摘要版建议保留 10-12 条精华，阅读体验更好
             break
     return items
 
@@ -57,67 +81,62 @@ def send_news_email():
     news_data = get_mtn_intelligence()
     
     if not news_data:
-        # 如果依然没新闻，发送一份简单的系统状态报告，避免邮件内容过空
         news_data = [{"title": "No major updates found in the specified period.", "url": "#", "source": "System", "date": "-"}]
 
-    translator = GoogleTranslator(source='en', target='zh-CN')
     table_rows = ""
+    
+    print(f"ALEX AI Agent 正在分析 {len(news_data)} 条新闻...")
     
     for item in news_data:
         eng_title = item['title']
-        try:
-            # 翻译逻辑
-            chi_title = translator.translate(eng_title)
-        except:
-            chi_title = "Translation temporary unavailable."
+        
+        # 使用方案 D：AI 自动总结
+        ai_summary = get_ai_summarizer(eng_title)
             
         table_rows += f"""
         <tr>
-            <td style="padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; width: 50%;">
-                <div style="font-weight: bold; color: #333;">{eng_title}</div>
-                <div style="font-size: 12px; color: #999; margin-top: 4px;">{item['source']} | {item['date']}</div>
+            <td style="padding: 15px; border-bottom: 1px solid #eee; font-size: 14px; width: 45%; vertical-align: top;">
+                <div style="font-weight: bold; color: #333; line-height: 1.4;">{eng_title}</div>
+                <div style="font-size: 12px; color: #999; margin-top: 8px;">{item['source']} | {item['date']}</div>
             </td>
-            <td style="padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; color: #666;">
-                {chi_title}
-            </td>
-            <td style="padding: 12px; border-bottom: 1px solid #eee; text-align: right;">
-                <a href="{item['url']}" style="color: #0056b3; text-decoration: none; font-size: 13px;">View Details →</a>
+            <td style="padding: 15px; border-bottom: 1px solid #eee; font-size: 13px; color: #444; background-color: #fffdf5; line-height: 1.6;">
+                <strong style="color: #d4a017;">AI 深度简评：</strong><br>
+                {ai_summary}
+                <div style="margin-top: 10px;">
+                    <a href="{item['url']}" style="color: #0056b3; text-decoration: none; font-size: 12px;">查看原文详情 →</a>
+                </div>
             </td>
         </tr>
         """
 
-    # 邮件 HTML 结构优化：减少花哨颜色，增加正文描述
     html_content = f"""
     <html>
-    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 20px;">
-        <div style="max-width: 800px; margin: 0 auto; background: #ffffff;">
-            <div style="padding-bottom: 20px; border-bottom: 2px solid #333;">
-                <h2 style="margin: 0; color: #000;">MTN Market Update</h2>
-                <p style="color: #666; font-size: 14px; margin: 5px 0 0;">Prepared by ALEX AI Intelligence Service</p>
+    <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f4f4;">
+        <div style="max-width: 900px; margin: 0 auto; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden;">
+            <div style="background-color: #ffcc00; padding: 30px; text-align: center;">
+                <h2 style="margin: 0; color: #000; font-size: 24px;">MTN AI Summarizer Report</h2>
+                <p style="color: #333; font-size: 15px; margin: 8px 0 0;">由 ALEX AI Agent 自动生成的双周深度简报</p>
             </div>
             
-            <p style="font-size: 14px; color: #444; margin-top: 20px;">
-                Hello, <br><br>
-                Please find the latest business updates and news summaries for MTN Group and its regional subsidiaries (Last 14 days).
-            </p>
+            <div style="padding: 25px;">
+                <p style="font-size: 15px; color: #555;">
+                    您好，<br><br>
+                    以下是 AI 为您从全球渠道提取并分析的 <b>MTN 集团</b> 关键动态。AI 已将长篇资讯浓缩为核心精华：
+                </p>
 
-            <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
-                <thead>
-                    <tr style="text-align: left; background-color: #f9f9f9;">
-                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">Headline</th>
-                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">Summary (CN)</th>
-                        <th style="padding: 12px; border-bottom: 1px solid #ddd;">Action</th>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+                    <tr style="background-color: #333; color: #fff; font-size: 14px;">
+                        <th style="padding: 12px; text-align: left;">新闻原标题</th>
+                        <th style="padding: 12px; text-align: left;">AI 三句话分析</th>
                     </tr>
-                </thead>
-                <tbody>
                     {table_rows}
-                </tbody>
-            </table>
+                </table>
+            </div>
 
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
-                This is an automated professional briefing. <br>
-                Markets covered: South Africa, Nigeria, Ghana, Uganda, Cameroon, Ivory Coast. <br>
-                Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            <div style="margin-top: 20px; padding: 20px; background-color: #fafafa; border-top: 1px solid #eee; font-size: 12px; color: #999; text-align: center;">
+                <b>自动化分析引擎：</b> Gemini 1.5 Flash Model<br>
+                <b>覆盖市场：</b> SA, Nigeria, Ghana, Uganda, Cameroon, Ivory Coast.<br>
+                生成日期：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             </div>
         </div>
     </body>
@@ -125,12 +144,8 @@ def send_news_email():
     """
 
     msg = MIMEMultipart()
-    
-    # --- 策略：使用全英文专业标题，极大地降低被拦截概率 ---
-    msg['Subject'] = f"MTN Business Update: Global Subsidiary News - {datetime.now().strftime('%Y-%m-%d')}"
-    
-    # --- 策略：规范发件人名称 ---
-    msg['From'] = f"ALEX AI Reports <{sender_user}>"
+    msg['Subject'] = f"MTN Intelligence: AI-Powered Summaries - {datetime.now().strftime('%Y-%m-%d')}"
+    msg['From'] = f"XING Yinnghua's AI Agent's Reports <{sender_user}>"
     msg['To'] = receiver_user
     msg.attach(MIMEText(html_content, 'html'))
 
@@ -138,7 +153,7 @@ def send_news_email():
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
             server.send_message(msg)
-        print("✅ Report sent successfully.")
+        print("✅ AI Summarizer Report sent successfully.")
     except Exception as e:
         print(f"❌ Error occurred: {e}")
 
