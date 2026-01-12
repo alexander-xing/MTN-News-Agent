@@ -17,32 +17,40 @@ active_model = None
 if api_key:
     try:
         client = genai.Client(api_key=api_key)
-        # --- 核心修复：自动探测可用模型 ---
         print("正在探测可用 AI 模型...")
-        for m in client.models.list():
-            # 优先寻找 flash 版本的模型，它速度最快且免费额度高
+        
+        # 1. 自动探测逻辑
+        model_list = list(client.models.list())
+        for m in model_list:
+            # 兼容性处理：确保我们拿到的名称是完整路径
+            m_name = m.name if 'models/' in m.name else f"models/{m.name}"
             if 'generateContent' in m.supported_methods and 'flash' in m.name:
-                active_model = m.name
-                print(f"成功锁定模型: {active_model}")
+                active_model = m_name
+                print(f"✅ 成功锁定模型: {active_model}")
                 break
         
-        # 如果没找到 flash，就找任何支持生成内容的模型
+        # 2. 保底探测逻辑
         if not active_model:
-            for m in client.models.list():
+            for m in model_list:
+                m_name = m.name if 'models/' in m.name else f"models/{m.name}"
                 if 'generateContent' in m.supported_methods:
-                    active_model = m.name
+                    active_model = m_name
+                    print(f"⚠️ 未找到 Flash，切换至可用模型: {active_model}")
                     break
+                    
     except Exception as e:
         print(f"Gemini 初始化探测失败: {e}")
+        # 3. 最终硬编码保底：如果 API 连 List 功能都暂时故障，尝试标准路径
+        active_model = "models/gemini-1.5-flash"
+        print(f"📌 探测异常，使用硬编码保底路径: {active_model}")
 
 def get_ai_summarizer(title):
-    """使用探测到的 active_model 进行总结"""
     if not client or not active_model:
         return None
         
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     try:
-        # 使用探测到的确切名称（例如可能是 'models/gemini-2.0-flash'）
+        # 使用探测结果
         response = client.models.generate_content(
             model=active_model, 
             contents=prompt
@@ -54,6 +62,7 @@ def get_ai_summarizer(title):
         print(f"AI 总结不可用 (执行错误): {e}")
         return None
 
+# --- 以下 fetch_from_google 和 send_news_email 逻辑保持不变 ---
 def fetch_from_google(query):
     encoded_query = urllib.parse.quote(query)
     rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
@@ -88,7 +97,6 @@ def send_news_email():
 
     translator = GoogleTranslator(source='en', target='zh-CN')
     table_rows = ""
-    
     print(f"正在处理 {len(news_data)} 条新闻...")
     
     for item in news_data:
@@ -155,5 +163,4 @@ def send_news_email():
         print(f"❌ 发送失败: {e}")
 
 if __name__ == "__main__":
-    # 删除了多余的一次调用，避免重复发信
     send_news_email()
