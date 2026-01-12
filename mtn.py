@@ -58,7 +58,7 @@ def send_news_email():
     </html>
     """
 
-    # 5. 发送邮件
+# 5. 发送邮件
     msg = MIMEMultipart()
     msg['Subject'] = "今日新闻自动翻译推送"
     msg['From'] = sender_user
@@ -68,10 +68,11 @@ def send_news_email():
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
-            server.send_msg(msg)
-        print("邮件发送成功！")
+            # 关键修改：将 send_msg 改为 send_message
+            server.send_message(msg) 
+        print("✅ 邮件发送成功！")
     except Exception as e:
-        print(f"发送失败: {e}")
+        print(f"❌ 发送失败: {e}")
 
 if __name__ == "__main__":
     send_news_email()
