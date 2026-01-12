@@ -24,40 +24,23 @@ if api_key:
 def get_ai_summarizer(title):
     if not client:
         return None
-        
+    
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     
-    # 尝试最稳定的两个 ID
-    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro"]
-    
-    for model_id in models_to_try:
-        try:
-            response = client.models.generate_content(
-                model=model_id, 
-                contents=prompt
-            )
+    try:
+        # 【2026最新经验】不要手动加任何 http_options 或 api_version
+        # 直接调用模型 ID，SDK 会自动匹配最新的 v1 生产接口
+        response = client.models.generate_content(
+            model="gemini-1.5-flash", 
+            contents=prompt
+        )
+        
+        if response and response.text:
+            return response.text.strip().replace('\n', '<br>')
             
-            # 2026 SDK 终极读取逻辑：
-            # 1. 优先尝试标准的 .text 属性
-            if hasattr(response, 'text') and response.text:
-                return response.text.strip().replace('\n', '<br>')
-            
-            # 2. 如果 .text 为空，尝试从 candidates 深度抓取（应对安全过滤后的残留）
-            if response.candidates and len(response.candidates) > 0:
-                candidate = response.candidates[0]
-                if candidate.content and candidate.content.parts:
-                    part_text = candidate.content.parts[0].text
-                    if part_text:
-                        return part_text.strip().replace('\n', '<br>')
-
-            # 如果走到这里，说明 API 返回了空对象（可能是安全拦截）
-            print(f"ℹ️ {model_id} 返回了空内容，可能是触发了安全过滤。")
-            
-        except Exception as e:
-            # 忽略 404，只记录严重的运行时异常
-            if "404" not in str(e):
-                print(f"⚠️ {model_id} 运行时异常细节: {str(e)}")
-            continue
+    except Exception as e:
+        # 如果还是 404，这里会打印出 Google 预期的完整路径，方便我们最后对齐
+        print(f"⚠️ 调试信息: {str(e)}")
     
     return None
 
