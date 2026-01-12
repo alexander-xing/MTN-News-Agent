@@ -1,27 +1,28 @@
-name: MTN News Weekly Push
+name: Weekly MTN Intelligence
 
 on:
   schedule:
-    # 关键：南非 08:30 (GMT+2) 是 UTC 06:30
-    - cron: '30 6 * * 1' 
-  workflow_dispatch: # 允许你手动点击运行测试
+    # 周一 09:30 SAST (南非时间) = 07:30 UTC
+    - cron: '30 7 * * 1'
+  workflow_dispatch: # 这个按钮允许你手动随时点击运行测试
 
 jobs:
-  build:
+  run-agent:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install feedparser requests pytz
 
-      - name: Run Agent
+      - name: Execute Agent
         env:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
