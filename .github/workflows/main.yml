@@ -1,0 +1,28 @@
+name: MTN News Weekly Push
+
+on:
+  schedule:
+    # 关键：南非 08:30 (GMT+2) 是 UTC 06:30
+    - cron: '30 6 * * 1' 
+  workflow_dispatch: # 允许你手动点击运行测试
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Agent
+        env:
+          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        run: python mtn_agent.py
