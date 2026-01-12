@@ -1,4 +1,4 @@
-name: MTN AI News Agent
+name: MTN Intelligence Daily
 
 on:
   workflow_dispatch:
@@ -6,7 +6,7 @@ on:
     - cron: '0 8 * * *'
 
 jobs:
-  run-agent:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -22,7 +22,6 @@ jobs:
 
       - name: Run Script
         env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           EMAIL_ADDRESS: ${{ secrets.EMAIL_ADDRESS }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
