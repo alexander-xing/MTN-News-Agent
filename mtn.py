@@ -12,58 +12,40 @@ from deep_translator import GoogleTranslator
 # --- 配置 Gemini SDK ---
 api_key = os.environ.get('GEMINI_API_KEY')
 client = None
-active_model = None
 
 if api_key:
     try:
-        client = genai.Client(api_key=api_key)
-        print("正在探测可用 AI 模型...")
-        
-        # 1. 自动探测逻辑
-        model_list = list(client.models.list())
-        for m in model_list:
-            # 兼容性处理：确保我们拿到的名称是完整路径
-            m_name = m.name if 'models/' in m.name else f"models/{m.name}"
-            if 'generateContent' in m.supported_methods and 'flash' in m.name:
-                active_model = m_name
-                print(f"✅ 成功锁定模型: {active_model}")
-                break
-        
-        # 2. 保底探测逻辑
-        if not active_model:
-            for m in model_list:
-                m_name = m.name if 'models/' in m.name else f"models/{m.name}"
-                if 'generateContent' in m.supported_methods:
-                    active_model = m_name
-                    print(f"⚠️ 未找到 Flash，切换至可用模型: {active_model}")
-                    break
-                    
+        # 2026 生产级标准：强制锁定 v1 稳定版接口
+        client = genai.Client(
+            api_key=api_key,
+            http_options={'api_version': 'v1'}
+        )
+        print("✅ Gemini SDK 已成功初始化 (v1 稳定版)")
     except Exception as e:
-        print(f"Gemini 初始化探测失败: {e}")
-        # 3. 最终硬编码保底：如果 API 连 List 功能都暂时故障，尝试标准路径
-        active_model = "models/gemini-1.5-flash"
-        print(f"📌 探测异常，使用硬编码保底路径: {active_model}")
+        print(f"❌ Gemini 初始化失败: {e}")
 
 def get_ai_summarizer(title):
-    if not client or not active_model:
+    """调用 Gemini 生成三句话总结"""
+    if not client:
         return None
         
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     try:
-        # 使用探测结果
+        # 【重要修正】：添加 'models/' 前缀，这是彻底消除 404 的最后一步
         response = client.models.generate_content(
-            model=active_model, 
+            model="models/gemini-1.5-flash", 
             contents=prompt
         )
         if response and response.text:
             return response.text.strip().replace('\n', '<br>')
         return None
     except Exception as e:
-        print(f"AI 总结不可用 (执行错误): {e}")
+        # 增加具体错误捕获，方便最后一次排查
+        print(f"⚠️ AI 总结不可用: {e}")
         return None
 
-# --- 以下 fetch_from_google 和 send_news_email 逻辑保持不变 ---
 def fetch_from_google(query):
+    """从 Google News 获取最近 14 天的新闻"""
     encoded_query = urllib.parse.quote(query)
     rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
     feed = feedparser.parse(rss_url)
@@ -83,10 +65,12 @@ def fetch_from_google(query):
     return items
 
 def send_news_email():
+    """执行搜索、总结并发送邮件"""
     sender_user = os.environ.get('EMAIL_ADDRESS')
     sender_password = os.environ.get('EMAIL_PASSWORD')
     receiver_user = os.environ.get('RECEIVER_EMAIL')
 
+    # 定义搜索关键词
     subsidaries = ['MTN Group', '"MTN South Africa"', '"MTN Nigeria"', '"MTN Ghana"', '"MTN Uganda"', '"MTN Cameroon"', '"MTN Ivory Coast"']
     query_str = "(" + " OR ".join(subsidaries) + ") when:14d"
     news_data = fetch_from_google(query_str)
@@ -108,6 +92,7 @@ def send_news_email():
         except:
             chi_title = "（翻译暂不可用）"
 
+        # 展示逻辑
         if ai_summary:
             display_content = f"<div style='color: #d4a017; font-weight: bold; margin-bottom: 5px;'>AI 深度分析：</div>{ai_summary}"
         else:
@@ -158,7 +143,7 @@ def send_news_email():
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
             server.send_message(msg)
-        print("✅ 报告已送达。")
+        print("✅ 报告已成功投递到您的邮箱。")
     except Exception as e:
         print(f"❌ 发送失败: {e}")
 
