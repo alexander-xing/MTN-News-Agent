@@ -4,7 +4,7 @@ on:
   schedule:
     # 周一 09:30 SAST (南非时间) = 07:30 UTC
     - cron: '30 7 * * 1'
-  workflow_dispatch: # 这个按钮允许你手动随时点击运行测试
+  workflow_dispatch: # 允许手动点击运行
 
 jobs:
   run-agent:
@@ -20,10 +20,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install feedparser requests pytz
+          # 关键修改：增加了 deep-translator
+          pip install feedparser requests pytz deep-translator
 
       - name: Execute Agent
         env:
-          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
-          EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+          # 关键修改：这里的名字必须和 Python 代码中的 os.environ.get('...') 保持一致
+          MY_EMAIL: ${{ secrets.EMAIL_SENDER }}
+          MY_PASS: ${{ secrets.EMAIL_PASSWORD }}
+          RECEIVER: ${{ secrets.RECEIVER_EMAIL }}
         run: python mtn_agent.py
