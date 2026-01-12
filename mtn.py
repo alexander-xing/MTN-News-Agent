@@ -15,7 +15,7 @@ client = None
 
 if api_key:
     try:
-        # 2026 终极兼容性方案：显式指定 v1，这是目前最稳定的生产环境端点
+        # 强制使用 v1 稳定版接口
         client = genai.Client(api_key=api_key, http_options={'api_version': 'v1'})
         print("✅ Gemini SDK 已初始化 (强制 v1 模式)")
     except Exception as e:
@@ -24,28 +24,40 @@ if api_key:
 def get_ai_summarizer(title):
     if not client:
         return None
-    
+        
     prompt = f"你是一个资深电信分析师。请针对新闻标题 '{title}'，给出3句中文精华总结：1.事件概括 2.商业影响 3.行业点评。总字数80字内。"
     
-    try:
-        # 【2026最新经验】不要手动加任何 http_options 或 api_version
-        # 直接调用模型 ID，SDK 会自动匹配最新的 v1 生产接口
-        response = client.models.generate_content(
-            model="gemini-1.5-flash", 
-            contents=prompt
-        )
-        
-        if response and response.text:
-            return response.text.strip().replace('\n', '<br>')
+    # 尝试这两个最稳健的模型全称
+    models_to_try = ["models/gemini-1.5-flash", "models/gemini-1.5-pro"]
+    
+    for model_id in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_id, 
+                contents=prompt,
+                config={
+                    # 关键：防止安全过滤导致返回空内容
+                    'safety_settings': [
+                        {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+                        {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'BLOCK_NONE'},
+                        {'category': 'HARM_CATEGORY_DANGEROUS_CONTENT', 'threshold': 'BLOCK_NONE'},
+                        {'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT', 'threshold': 'BLOCK_NONE'}
+                    ]
+                }
+            )
             
-    except Exception as e:
-        # 如果还是 404，这里会打印出 Google 预期的完整路径，方便我们最后对齐
-        print(f"⚠️ 调试信息: {str(e)}")
+            if response and response.text:
+                return response.text.strip().replace('\n', '<br>')
+        except Exception as e:
+            # 只有非 404 错误才打印调试信息
+            if "404" not in str(e):
+                print(f"⚠️ {model_id} 运行时异常: {str(e)}")
+            continue
     
     return None
 
-# --- fetch_from_google 和 send_news_email 逻辑保持不变 ---
 def fetch_from_google(query):
+    """从 Google News 获取最近 14 天的新闻"""
     encoded_query = urllib.parse.quote(query)
     rss_url = f"https://news.google.com/rss/search?q={encoded_query}&hl=en-US&gl=US&ceid=US:en"
     feed = feedparser.parse(rss_url)
@@ -65,10 +77,12 @@ def fetch_from_google(query):
     return items
 
 def send_news_email():
+    """执行搜索、总结并发送邮件"""
     sender_user = os.environ.get('EMAIL_ADDRESS')
     sender_password = os.environ.get('EMAIL_PASSWORD')
     receiver_user = os.environ.get('RECEIVER_EMAIL')
 
+    # 定义搜索关键词
     subsidaries = ['MTN Group', '"MTN South Africa"', '"MTN Nigeria"', '"MTN Ghana"', '"MTN Uganda"', '"MTN Cameroon"', '"MTN Ivory Coast"']
     query_str = "(" + " OR ".join(subsidaries) + ") when:14d"
     news_data = fetch_from_google(query_str)
@@ -90,6 +104,7 @@ def send_news_email():
         except:
             chi_title = "（翻译暂不可用）"
 
+        # 展示逻辑
         if ai_summary:
             display_content = f"<div style='color: #d4a017; font-weight: bold; margin-bottom: 5px;'>AI 深度分析：</div>{ai_summary}"
         else:
@@ -140,7 +155,7 @@ def send_news_email():
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
             server.send_message(msg)
-        print("✅ 报告已送达。")
+        print("✅ 报告已成功投递。")
     except Exception as e:
         print(f"❌ 发送失败: {e}")
 
