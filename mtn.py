@@ -147,7 +147,7 @@ def send_news_email():
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
             server.send_message(msg)
-        print("✅ 邮件已以 'ALEX AI Agent' 身份成功送达！")
+        print("✅ 邮件已以 'Alex Xing 英华的AI Agent' 身份成功送达！")
     except Exception as e:
         print(f"❌ 发送失败: {e}")
 
