@@ -106,7 +106,7 @@ def send_news_email():
             </table>
             <div style="padding: 20px; text-align: center; font-size: 11px; color: #999; background: #fafafa;">
                 抓取源：Google News 全球版 (去重汇总)<br>
-                此报告由Alex Xing的agent负责每日更新一次
+                此报告由Alex Xing(820801)的agent负责每日更新一次，所有信息均基于网络公开信息
             </div>
         </div>
     </body>
