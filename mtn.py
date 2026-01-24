@@ -79,7 +79,7 @@ def send_news_email():
         except:
             chi_title = item['title']
             
-        # 核心优化：构建带有实线边框和层级感的表格行
+        # 表格行优化：实线边框
         table_rows += f"""
         <tr>
             <td style="padding: 12px; border: 1px solid #cbd5e0; text-align: center; background-color: #f7fafc; width: 90px; font-size: 12px; color: #4a5568; font-weight: bold;">
@@ -102,17 +102,17 @@ def send_news_email():
         </tr>
         """
 
-    # 核心优化：高级感 HTML 模版，明确 14 天标注
+    # HTML 模版
     html_content = f"""
     <html>
     <body style="font-family: 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif; background-color: #edf2f7; padding: 20px; margin: 0;">
         <div style="max-width: 800px; margin: 0 auto; background: #fff; border: 1px solid #a0aec0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
             
             <div style="background: #ffcc00; padding: 30px 25px; text-align: center; border-bottom: 5px solid #000;">
-                <h1 style="margin: 0; color: #000; font-size: 22px; font-weight: 900; letter-spacing: 0.5px;">Ying大人的"垂直教育情报每日滚动刷新"</h1>
-                <p style="margin: 10px 0 0; color: #000; font-size: 16px; font-weight: bold;">MTN 集团区域市场深度精华版</p>
+                <h1 style="margin: 0; color: #000; font-size: 22px; font-weight: 900; letter-spacing: 0.5px;">MTN 集团区域市场动态看板</h1>
+                <p style="margin: 10px 0 0; color: #000; font-size: 16px; font-weight: bold;">MTN Intelligence 每日深度精华</p>
                 <div style="margin-top: 15px; display: inline-block; background: #000; color: #ffcc00; padding: 6px 18px; border-radius: 4px; font-size: 13px; font-weight: bold;">
-                    📅 抓取范围：过去 {fetch_days} 天新闻情报 | 🕒 更新：{datetime.now().strftime('%Y-%m-%d %H:%M')}
+                    📅 抓取范围：过去 {fetch_days} 天新闻 | 🕒 更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}
                 </div>
             </div>
 
@@ -140,9 +140,14 @@ def send_news_email():
     </html>
     """
 
+    # 构造邮件
+    today_str = datetime.now().strftime('%Y-%m-%d')
     msg = MIMEMultipart()
-    # 设置邮件标题
-    msg['Subject'] = f"Ying大人的\"垂直教育情报每日滚动刷新\"：14天全球深度精华版"
+    
+    # --- 修改后的邮件标题 ---
+    msg['Subject'] = f"MTN Daily NEWS - MTN每日热点新闻 ({today_str})"
+    # ----------------------
+    
     msg['From'] = f"MTN Intelligence Agent <{sender_user}>"
     msg['To'] = receiver_user
     msg.attach(MIMEText(html_content, 'html'))
@@ -151,7 +156,7 @@ def send_news_email():
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
             server.send_message(msg)
-        print(f"✅ 报告已送达，包含过去14天共 {len(news_data)} 条动态。")
+        print(f"✅ 报告已送达：{msg['Subject']}")
     except Exception as e:
         print(f"❌ 邮件发送失败: {e}")
 
