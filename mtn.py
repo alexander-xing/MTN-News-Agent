@@ -61,6 +61,16 @@ def send_news_email():
     sender_password = os.environ.get('EMAIL_PASSWORD')
     receiver_user = os.environ.get('RECEIVER_EMAIL')
     
+    # --- 新增：收件人及抄送列表 ---
+    cc_list = [
+        "jiangquan@huawei.com",
+        "zhaodianbo@huawei.com",
+        "liurenyuan@huawei.com"
+    ]
+    # 合并所有需要投递的地址
+    all_recipients = [receiver_user] + cc_list
+    # ----------------------------
+    
     # 设定跨度为 14 天
     fetch_days = 14
     news_data = fetch_all_mtn_news(days=fetch_days)
@@ -131,7 +141,7 @@ def send_news_email():
             </div>
 
             <div style="padding: 25px; text-align: center; font-size: 12px; color: #718096; background: #f7fafc; border-top: 1px solid #e2e8f0;">
-                🛡️ 本报告由 <strong>Alex Xing(820801)</strong> 的私人 Agent 负责每日更新<br>
+                🛡️ 本报告由 <strong>Alex Xing(00820801)</strong> 的 Agent 负责更新<br>
                 数据源：Google News 全球版 (去重汇总) | <strong>时间跨度：14天</strong><br>
                 <p style="margin-top: 10px; color: #a0aec0; font-size: 10px;">© 2026 MTN Intelligence News Tracker</p>
             </div>
@@ -144,19 +154,22 @@ def send_news_email():
     today_str = datetime.now().strftime('%Y-%m-%d')
     msg = MIMEMultipart()
     
-    # --- 修改后的邮件标题 ---
+    # 邮件标题
     msg['Subject'] = f"MTN Daily NEWS - MTN每日热点新闻 ({today_str})"
-    # ----------------------
     
     msg['From'] = f"MTN Intelligence Agent <{sender_user}>"
     msg['To'] = receiver_user
+    # 在邮件头中添加抄送人显示
+    msg['Cc'] = ", ".join(cc_list)
+    
     msg.attach(MIMEText(html_content, 'html'))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
-            server.send_message(msg)
-        print(f"✅ 报告已送达：{msg['Subject']}")
+            # 发送给所有收件人（包含主收件人和抄送人）
+            server.sendmail(sender_user, all_recipients, msg.as_string())
+        print(f"✅ 报告已成功送达给 {len(all_recipients)} 位收件人。")
     except Exception as e:
         print(f"❌ 邮件发送失败: {e}")
 
