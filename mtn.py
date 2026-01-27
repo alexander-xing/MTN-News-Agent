@@ -60,11 +60,9 @@ def send_news_email():
     sender_user = os.environ.get('EMAIL_ADDRESS')
     sender_password = os.environ.get('EMAIL_PASSWORD')
     
-    # --- 修改部分：收件人设置 ---
-    # 主送人
+    # --- 核心修改：收件人与密送逻辑 ---
     to_receiver = "alex.xing@huawei.com"
     
-    # 密送名单 (BCC)
     bcc_list = [
         "fengliang6@huawei.com", "huang.xiangyuan@h-partners.com", "aoliugen@huawei.com",
         "john.cao@huawei.com", "chaipengfei@huawei.com", "chenhaiyang9@huawei.com",
@@ -76,14 +74,14 @@ def send_news_email():
         "liuxiaolong3@huawei.com", "luhaopeng@huawei.com", "luokangyong@huawei.com",
         "panchaochao@huawei.com", "peijian@huawei.com", "shaojie@huawei.com",
         "shiqingquan@huawei.com", "xiechenyue@huawei.com", "jaxy.xiejuxian@huawei.com",
-        "xieke@huawei.com", "alex.xing@huawei.com", "xu.yangming@huawei-partners.com",
-        "yangchunwei@huawei.com", "lancelo.yang@huawei.com", "yangming11@huawei.com",
-        "yuhongjie2@huawei.com", "zhangtianlin@huawei.com", "zhangwei622@huawei.com",
-        "zhangyanzong@huawei.com", "zhangziran@huawei.com", "zhaodianbo@huawei.com",
-        "zhaowenxiao@huawei.com", "zhuhewei@huawei.com", "zhuwenkang@huawei.com"
+        "xieke@huawei.com", "yangchunwei@huawei.com", "lancelo.yang@huawei.com", 
+        "yangming11@huawei.com", "yuhongjie2@huawei.com", "zhangtianlin@huawei.com", 
+        "zhangwei622@huawei.com", "zhangyanzong@huawei.com", "zhangziran@huawei.com", 
+        "zhaodianbo@huawei.com", "zhaowenxiao@huawei.com", "zhuhewei@huawei.com", 
+        "zhuwenkang@huawei.com"
     ]
     
-    # 发送时需要包含所有地址
+    # SMTP服务器需要的投递地址全集
     all_recipients = [to_receiver] + bcc_list
     # ----------------------------
     
@@ -99,10 +97,8 @@ def send_news_email():
     print(f"开始翻译并生成报告，共 {len(news_data)} 条...")
     
     for item in news_data:
-        try:
-            chi_title = translator.translate(item['title'])
-        except:
-            chi_title = item['title']
+        try: chi_title = translator.translate(item['title'])
+        except: chi_title = item['title']
             
         table_rows += f"""
         <tr>
@@ -126,7 +122,6 @@ def send_news_email():
         </tr>
         """
 
-    # HTML 模版
     html_content = f"""
     <html>
     <body style="font-family: 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif; background-color: #edf2f7; padding: 20px; margin: 0;">
@@ -153,7 +148,7 @@ def send_news_email():
             </div>
             <div style="padding: 25px; text-align: center; font-size: 12px; color: #718096; background: #f7fafc; border-top: 1px solid #e2e8f0;">
                 🛡️ 本报告由 <strong>Alex Xing(00820801)</strong> 的 AI Agent 负责，来源自网络公开信息<br>
-                数据源：Google News 全球版 (去重汇总) | <strong>时间跨度：14天</strong><br>
+                数据源：Google News 全球版 | <strong>时间跨度：14天</strong><br>
                 <p style="margin-top: 10px; color: #a0aec0; font-size: 10px;">© 2026 MTN Intelligence News Tracker</p>
             </div>
         </div>
@@ -161,23 +156,17 @@ def send_news_email():
     </html>
     """
 
-    # 构造邮件
     today_str = datetime.now().strftime('%Y-%m-%d')
     msg = MIMEMultipart()
-    
-    # 邮件标题
     msg['Subject'] = f"MTN Daily NEWS - MTN每日热点新闻 ({today_str})"
     msg['From'] = f"MTN Intelligence Agent <{sender_user}>"
     msg['To'] = to_receiver
-    
-    # 注意：密送（BCC）不写在 msg 头部，直接在发送函数中包含即可
     
     msg.attach(MIMEText(html_content, 'html'))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
-            # 关键：此处传入 all_recipients，包含 To 和所有 BCC 地址
             server.sendmail(sender_user, all_recipients, msg.as_string())
         print(f"✅ 报告已成功送达。主送: {to_receiver}, 密送: {len(bcc_list)} 人。")
     except Exception as e:
