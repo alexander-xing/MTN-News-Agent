@@ -59,19 +59,34 @@ def fetch_all_mtn_news(days=14):
 def send_news_email():
     sender_user = os.environ.get('EMAIL_ADDRESS')
     sender_password = os.environ.get('EMAIL_PASSWORD')
-    receiver_user = os.environ.get('RECEIVER_EMAIL')
     
-    # --- 新增：收件人及抄送列表 ---
-    cc_list = [
-        "jiangquan@huawei.com",
-        "zhaodianbo@huawei.com",
-        "liurenyuan@huawei.com"
+    # --- 修改部分：收件人设置 ---
+    # 主送人
+    to_receiver = "alex.xing@huawei.com"
+    
+    # 密送名单 (BCC)
+    bcc_list = [
+        "fengliang6@huawei.com", "huang.xiangyuan@h-partners.com", "aoliugen@huawei.com",
+        "john.cao@huawei.com", "chaipengfei@huawei.com", "chenhaiyang9@huawei.com",
+        "chenjun165@huawei.com", "chenzhiqiang19@huawei.com", "dengbinbin2@huawei.com",
+        "dongman@huawei.com", "dupeng34@huawei.com", "gaoyunlong6@huawei.com",
+        "guochangwei6@huawei.com", "hanjinpeng@huawei.com", "hou.shuo@h-partners.com",
+        "jiangquan@huawei.com", "jiangyuze@huawei.com", "liangxinan@huawei.com",
+        "liufuxiang@huawei.com", "liurenyuan@huawei.com",
+        "liuxiaolong3@huawei.com", "luhaopeng@huawei.com", "luokangyong@huawei.com",
+        "panchaochao@huawei.com", "peijian@huawei.com", "shaojie@huawei.com",
+        "shiqingquan@huawei.com", "xiechenyue@huawei.com", "jaxy.xiejuxian@huawei.com",
+        "xieke@huawei.com", "alex.xing@huawei.com", "xu.yangming@huawei-partners.com",
+        "yangchunwei@huawei.com", "lancelo.yang@huawei.com", "yangming11@huawei.com",
+        "yuhongjie2@huawei.com", "zhangtianlin@huawei.com", "zhangwei622@huawei.com",
+        "zhangyanzong@huawei.com", "zhangziran@huawei.com", "zhaodianbo@huawei.com",
+        "zhaowenxiao@huawei.com", "zhuhewei@huawei.com", "zhuwenkang@huawei.com"
     ]
-    # 合并所有需要投递的地址
-    all_recipients = [receiver_user] + cc_list
+    
+    # 发送时需要包含所有地址
+    all_recipients = [to_receiver] + bcc_list
     # ----------------------------
     
-    # 设定跨度为 14 天
     fetch_days = 14
     news_data = fetch_all_mtn_news(days=fetch_days)
     
@@ -89,7 +104,6 @@ def send_news_email():
         except:
             chi_title = item['title']
             
-        # 表格行优化：实线边框
         table_rows += f"""
         <tr>
             <td style="padding: 12px; border: 1px solid #cbd5e0; text-align: center; background-color: #f7fafc; width: 90px; font-size: 12px; color: #4a5568; font-weight: bold;">
@@ -117,7 +131,6 @@ def send_news_email():
     <html>
     <body style="font-family: 'PingFang SC', 'Microsoft YaHei', Helvetica, Arial, sans-serif; background-color: #edf2f7; padding: 20px; margin: 0;">
         <div style="max-width: 800px; margin: 0 auto; background: #fff; border: 1px solid #a0aec0; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
-            
             <div style="background: #ffcc00; padding: 30px 25px; text-align: center; border-bottom: 5px solid #000;">
                 <h1 style="margin: 0; color: #000; font-size: 22px; font-weight: 900; letter-spacing: 0.5px;">MTN 集团区域市场动态看板</h1>
                 <p style="margin: 10px 0 0; color: #000; font-size: 16px; font-weight: bold;">MTN Intelligence 每日深度精华</p>
@@ -125,7 +138,6 @@ def send_news_email():
                     📅 抓取范围：过去 {fetch_days} 天新闻 | 🕒 更新时间：{datetime.now().strftime('%Y-%m-%d %H:%M')}
                 </div>
             </div>
-
             <div style="padding: 20px;">
                 <table style="width: 100%; border-collapse: collapse; border: 2px solid #2d3748;">
                     <thead>
@@ -139,9 +151,8 @@ def send_news_email():
                     </tbody>
                 </table>
             </div>
-
             <div style="padding: 25px; text-align: center; font-size: 12px; color: #718096; background: #f7fafc; border-top: 1px solid #e2e8f0;">
-                🛡️ 本报告由 <strong>Alex Xing(00820801)</strong> 的 Agent 负责更新<br>
+                🛡️ 本报告由 <strong>Alex Xing(00820801)</strong> 的 AI Agent 负责，来源自网络公开信息<br>
                 数据源：Google News 全球版 (去重汇总) | <strong>时间跨度：14天</strong><br>
                 <p style="margin-top: 10px; color: #a0aec0; font-size: 10px;">© 2026 MTN Intelligence News Tracker</p>
             </div>
@@ -156,20 +167,19 @@ def send_news_email():
     
     # 邮件标题
     msg['Subject'] = f"MTN Daily NEWS - MTN每日热点新闻 ({today_str})"
-    
     msg['From'] = f"MTN Intelligence Agent <{sender_user}>"
-    msg['To'] = receiver_user
-    # 在邮件头中添加抄送人显示
-    msg['Cc'] = ", ".join(cc_list)
+    msg['To'] = to_receiver
+    
+    # 注意：密送（BCC）不写在 msg 头部，直接在发送函数中包含即可
     
     msg.attach(MIMEText(html_content, 'html'))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
-            # 发送给所有收件人（包含主收件人和抄送人）
+            # 关键：此处传入 all_recipients，包含 To 和所有 BCC 地址
             server.sendmail(sender_user, all_recipients, msg.as_string())
-        print(f"✅ 报告已成功送达给 {len(all_recipients)} 位收件人。")
+        print(f"✅ 报告已成功送达。主送: {to_receiver}, 密送: {len(bcc_list)} 人。")
     except Exception as e:
         print(f"❌ 邮件发送失败: {e}")
 
