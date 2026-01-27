@@ -10,9 +10,6 @@ from email.mime.multipart import MIMEMultipart
 from deep_translator import GoogleTranslator
 
 def fetch_all_mtn_news(days=14):
-    """
-    循环抓取10个分公司的新闻，确保不遗漏
-    """
     countries = [
         "MTN Group", "MTN Nigeria", "MTN South Africa", "MTN Ghana", 
         "MTN Uganda", "MTN Cameroon", "MTN Ivory Coast", "MTN Benin", 
@@ -51,7 +48,7 @@ def fetch_all_mtn_news(days=14):
             if count >= 8: break 
         
         print(f" - {country}: 找到 {count} 条相关动态")
-        time.sleep(1) 
+        time.sleep(0.5) 
 
     all_items.sort(key=lambda x: x['timestamp'], reverse=True)
     return all_items
@@ -60,29 +57,28 @@ def send_news_email():
     sender_user = os.environ.get('EMAIL_ADDRESS')
     sender_password = os.environ.get('EMAIL_PASSWORD')
     
-    # --- 核心修改：收件人与密送逻辑 ---
-    to_receiver = "alex.xing@huawei.com"
-    
-    bcc_list = [
-        "fengliang6@huawei.com", "aoliugen@huawei.com",
-        "john.cao@huawei.com", "chaipengfei@huawei.com", "chenhaiyang9@huawei.com",
-        "chenjun165@huawei.com", "dengbinbin2@huawei.com",
-        "dongman@huawei.com", "dupeng34@huawei.com", "gaoyunlong6@huawei.com",
-        "guochangwei6@huawei.com", "hanjinpeng@huawei.com", 
-        "jiangquan@huawei.com", "liangxinan@huawei.com", "liurenyuan@huawei.com",
-        "liuxiaolong3@huawei.com", "luhaopeng@huawei.com", "luokangyong@huawei.com",
-        "panchaochao@huawei.com", "peijian@huawei.com", "shaojie@huawei.com",
-        "shiqingquan@huawei.com", "xiechenyue@huawei.com", "jaxy.xiejuxian@huawei.com",
-        "xieke@huawei.com", "yangchunwei@huawei.com", "lancelo.yang@huawei.com", 
-        "yangming11@huawei.com", "yuhongjie2@huawei.com", "zhangtianlin@huawei.com", 
-        "zhangwei622@huawei.com", "zhangyanzong@huawei.com", "zhangziran@huawei.com", 
-        "zhaodianbo@huawei.com", "zhaowenxiao@huawei.com", "zhuhewei@huawei.com", 
-        "zhuwenkang@huawei.com"
+    # --- 核心修改：已排序的主送人名单 ---
+    recipient_list = [
+        "alex.xing@huawei.com",
+        "dongman@huawei.com",
+        "fengliang6@huawei.com",
+        "hanjinpeng@huawei.com",
+        "jaxy.xiejuxian@huawei.com",
+        "jiangquan@huawei.com",
+        "john.cao@huawei.com",
+        "liangxinan@huawei.com",
+        "liurenyuan@huawei.com",
+        "peijian@huawei.com",
+        "shaojie@huawei.com",
+        "shiqingquan@huawei.com",
+        "yangchunwei@huawei.com",
+        "yangming11@huawei.com",
+        "zhaodianbo@huawei.com",
+        "zhaowenxiao@huawei.com"
     ]
     
-    # SMTP服务器需要的投递地址全集
-    all_recipients = [to_receiver] + bcc_list
-    # ----------------------------
+    to_header = ", ".join(recipient_list) # 将列表转为逗号分隔的字符串供 Header 使用
+    # ----------------------------------
     
     fetch_days = 14
     news_data = fetch_all_mtn_news(days=fetch_days)
@@ -159,15 +155,16 @@ def send_news_email():
     msg = MIMEMultipart()
     msg['Subject'] = f"MTN Daily NEWS - MTN每日热点新闻 ({today_str})"
     msg['From'] = f"MTN Intelligence Agent <{sender_user}>"
-    msg['To'] = to_receiver
+    msg['To'] = to_header # 所有收件人都在主送栏显示
     
     msg.attach(MIMEText(html_content, 'html'))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
-            server.sendmail(sender_user, all_recipients, msg.as_string())
-        print(f"✅ 报告已成功送达。主送: {to_receiver}, 密送: {len(bcc_list)} 人。")
+            # 发送给整个名单
+            server.sendmail(sender_user, recipient_list, msg.as_string())
+        print(f"✅ 报告已成功送达。收件人: {len(recipient_list)} 位（全部主送）。")
     except Exception as e:
         print(f"❌ 邮件发送失败: {e}")
 
