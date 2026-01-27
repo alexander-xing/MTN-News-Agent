@@ -64,13 +64,12 @@ def send_news_email():
     to_receiver = "alex.xing@huawei.com"
     
     bcc_list = [
-        "fengliang6@huawei.com", "huang.xiangyuan@h-partners.com", "aoliugen@huawei.com",
+        "fengliang6@huawei.com", "aoliugen@huawei.com",
         "john.cao@huawei.com", "chaipengfei@huawei.com", "chenhaiyang9@huawei.com",
-        "chenjun165@huawei.com", "chenzhiqiang19@huawei.com", "dengbinbin2@huawei.com",
+        "chenjun165@huawei.com", "dengbinbin2@huawei.com",
         "dongman@huawei.com", "dupeng34@huawei.com", "gaoyunlong6@huawei.com",
-        "guochangwei6@huawei.com", "hanjinpeng@huawei.com", "hou.shuo@h-partners.com",
-        "jiangquan@huawei.com", "jiangyuze@huawei.com", "liangxinan@huawei.com",
-        "liufuxiang@huawei.com", "liurenyuan@huawei.com",
+        "guochangwei6@huawei.com", "hanjinpeng@huawei.com", 
+        "jiangquan@huawei.com", "liangxinan@huawei.com", "liurenyuan@huawei.com",
         "liuxiaolong3@huawei.com", "luhaopeng@huawei.com", "luokangyong@huawei.com",
         "panchaochao@huawei.com", "peijian@huawei.com", "shaojie@huawei.com",
         "shiqingquan@huawei.com", "xiechenyue@huawei.com", "jaxy.xiejuxian@huawei.com",
