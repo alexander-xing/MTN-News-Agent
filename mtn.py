@@ -57,16 +57,16 @@ def send_news_email():
     sender_user = os.environ.get('EMAIL_ADDRESS')
     sender_password = os.environ.get('EMAIL_PASSWORD')
     
-    # --- 核心修改：已排序的主送人名单 ---
+    # --- 核心修改：严格 A-Z 排序 ---
     recipient_list = [
         "alex.xing@huawei.com",
         "dongman@huawei.com",
         "fengliang6@huawei.com",
         "hanjinpeng@huawei.com",
-                "jiangquan@huawei.com",
+        "jiangquan@huawei.com",
         "john.cao@huawei.com",
-             "liurenyuan@huawei.com",
-        "peijian@huawei.com",
+        "liurenyuan@huawei.com",
+        "peijian@huawei.com",      
         "shaojie@huawei.com",
         "shiqingquan@huawei.com",
         "yangchunwei@huawei.com",
@@ -75,7 +75,7 @@ def send_news_email():
         "zhaowenxiao@huawei.com"
     ]
     
-    to_header = ", ".join(recipient_list) # 将列表转为逗号分隔的字符串供 Header 使用
+    to_header = ", ".join(recipient_list)
     # ----------------------------------
     
     fetch_days = 14
@@ -140,7 +140,7 @@ def send_news_email():
                 </table>
             </div>
             <div style="padding: 25px; text-align: center; font-size: 12px; color: #718096; background: #f7fafc; border-top: 1px solid #e2e8f0;">
-                🛡️ 本报告由 <strong>Alex Xing(00820801)</strong> 的 AI Agent 负责，来源自网络公开信息<br>
+                🛡️ 本报告由 XING YINGHUA(00820801)的AI Agent 自动生成，来源自网络公开信息<br>
                 数据源：Google News 全球版 | <strong>时间跨度：14天</strong><br>
                 <p style="margin-top: 10px; color: #a0aec0; font-size: 10px;">© 2026 MTN Intelligence News Tracker</p>
             </div>
@@ -153,18 +153,19 @@ def send_news_email():
     msg = MIMEMultipart()
     msg['Subject'] = f"MTN Daily NEWS - MTN每日热点新闻 ({today_str})"
     msg['From'] = f"MTN Intelligence Agent <{sender_user}>"
-    msg['To'] = to_header # 所有收件人都在主送栏显示
+    msg['To'] = to_header 
     
     msg.attach(MIMEText(html_content, 'html'))
 
     try:
         with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
             server.login(sender_user, sender_password)
-            # 发送给整个名单
             server.sendmail(sender_user, recipient_list, msg.as_string())
         print(f"✅ 报告已成功送达。收件人: {len(recipient_list)} 位（全部主送）。")
     except Exception as e:
+        import traceback
         print(f"❌ 邮件发送失败: {e}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     send_news_email()
